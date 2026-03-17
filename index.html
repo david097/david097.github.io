@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>상록교회 통합 모니터링 시스템</title>
+    <style>
+        /* [STYLE SECTION] ----------------------------------------------------------- */
+        /* 사용자의 기존 스타일 설정을 100% 그대로 유지합니다. */
+        #sangrok-isolation-wrapper {
+            all: initial; display: block; width: 100%; min-height: 100vh;
+            background-color: #000; font-family: 'Pretendard', 'Malgun Gothic', sans-serif !important; box-sizing: border-box;
+        }
+        #sangrok-root {
+            display: flex !important; flex-direction: column !important; width: 100% !important;
+            min-height: 100vh !important; padding: 25px !important;
+            background: radial-gradient(circle at center, #1a1a1a 0%, #000 100%) !important;
+            box-sizing: border-box !important;
+        }
+        #sangrok-root *, #sangrok-root *::before, #sangrok-root *::after { box-sizing: border-box !important; margin: 0; padding: 0; line-height: 1.1 !important; }
+
+        #system-status-bar {
+            width: 100% !important; 
+            padding: 0 10px 15px 10px !important; 
+            display: flex !important;
+            justify-content: space-between !important; 
+            align-items: center !important; 
+            background: transparent !important; 
+            border: none !important;
+        }
+        #status-msg { color: #00ff88 !important; font-size: 13px !important; font-weight: 800 !important; letter-spacing: -0.5px; }
+        #last-check { color: rgba(255,255,255,0.2) !important; font-size: 11px !important; text-transform: uppercase; font-weight: 600; display: flex !important; gap: 10px !important; }
+
+        .main-container { display: flex !important; gap: 25px !important; width: 100% !important; }
+        .sangrok-video-section { flex: 1.8 !important; min-width: 0 !important; display: flex !important; flex-direction: column !important; gap: 15px !important; }
+        .sangrok-video-glass {
+            position: relative !important; width: 100% !important; padding-bottom: 56.25% !important;
+            background: #000 !important; border-radius: 24px !important; 
+            border: 1px solid rgba(255,255,255,0.1) !important; overflow: hidden !important;
+            box-shadow: 0 40px 100px rgba(0,0,0,0.8) !important;
+        }
+        .sangrok-video-glass iframe { position: absolute !important; width: 100% !important; height: 100% !important; border: 0 !important; z-index: 2; }
+
+        #offline-overlay {
+            position: absolute !important; top: 0; left: 0; width: 100%; height: 100%;
+            display: flex !important; flex-direction: column !important; align-items: center !important; justify-content: center !important;
+            background: #0a0a0a !important; z-index: 1;
+        }
+        #offline-logo { width: 40% !important; max-width: 300px !important; height: auto !important; opacity: 0.6; filter: drop-shadow(0 0 20px rgba(255,255,255,0.1)); }
+        #offline-msg { margin-top: 20px; color: rgba(255,255,255,0.2); font-size: 14px; font-weight: 700; letter-spacing: 1px; }
+
+        .info-under-video {
+            display: flex !important; flex-direction: column !important; gap: 12px !important;
+            background: rgba(255, 255, 255, 0.04) !important; border-radius: 24px !important; padding: 30px !important;
+            border: 1px solid rgba(255,255,255,0.08) !important; backdrop-filter: blur(20px);
+        }
+        #videoTitle { font-size: 28px !important; font-weight: 900 !important; color: #fff !important; line-height: 1.2 !important; word-break: keep-all !important; text-align: left !important; margin-bottom: 5px !important; }
+
+        .audio-check-wrapper { display: flex !important; align-items: center !important; gap: 10px !important; margin-bottom: 5px !important; }
+        .audio-bars { display: flex !important; align-items: flex-end !important; gap: 4px !important; height: 14px !important; }
+        .audio-bar { width: 3px !important; background: #333; border-radius: 2px !important; transition: background 0.4s; }
+        .anim-live { animation: audioPulse 0.8s infinite ease-in-out !important; }
+        .anim-wait { animation: audioPulse 2.5s infinite ease-in-out !important; opacity: 0.6; }
+        @keyframes audioPulse { 0%, 100% { height: 4px; } 50% { height: 14px; } }
+
+        #status-badge { 
+            display: block !important; width: 100% !important; padding: 15px !important; 
+            border-radius: 16px !important; font-size: 24px !important; font-weight: 900 !important; 
+            text-align: center !important; letter-spacing: -1px !important; white-space: nowrap !important;
+            margin-top: 10px !important;
+        }
+        .badge-upcoming { background: rgba(255, 193, 7, 0.1) !important; color: #FFC107 !important; border: 1px solid rgba(255, 193, 7, 0.2) !important; }
+        .badge-live { background: rgba(0, 255, 136, 0.05) !important; color: #00ff88 !important; border: 1px solid rgba(0, 255, 136, 0.2) !important; text-shadow: 0 0 15px rgba(0,255,136,0.4); }
+        
+        #viewer-trend { font-size: 22px !important; font-weight: 900 !important; margin-left: 12px !important; vertical-align: middle !important; }
+        .trend-up { color: #ff3333 !important; animation: bounceUp 1s infinite alternate; }
+        .trend-down { color: #3399ff !important; animation: bounceDown 1s infinite alternate; }
+        @keyframes bounceUp { from { transform: translateY(0); } to { transform: translateY(-3px); } }
+        @keyframes bounceDown { from { transform: translateY(0); } to { transform: translateY(3px); } }
+
+        .sangrok-side-panel { flex: 1 !important; max-width: 400px !important; display: flex !important; flex-direction: column !important; gap: 18px !important; }
+        .sangrok-glass-card { 
+            background: rgba(255, 255, 255, 0.05) !important; backdrop-filter: blur(25px) !important; 
+            border-radius: 28px !important; padding: 28px !important;
+            border-top: 1px solid rgba(255, 255, 255, 0.12) !important;
+            border-left: 1px solid rgba(255, 255, 255, 0.05) !important;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.3) !important;
+        }
+
+        .card-split { display: none !important; }
+
+        .sangrok-label { color: rgba(255,255,255,0.35) !important; font-size: 13px !important; font-weight: 800 !important; margin-bottom: 12px !important; display: block !important; letter-spacing: 1px; }
+        .sangrok-value { font-size: 85px !important; font-weight: 900 !important; color: #00ff88 !important; letter-spacing: -4px !important; text-shadow: 0 0 30px rgba(0,255,136,0.3) !important; }
+        .status-small-value { font-size: 38px !important; font-weight: 900 !important; color: #fff; letter-spacing: -1px; }
+        
+        .net-stable { color: #00ff88 !important; }
+        .net-warning { color: #FFC107 !important; }
+        .net-danger { color: #ff3333 !important; animation: pulseRed 1s infinite; }
+        
+        .quota-bar-wrapper { width: 100% !important; height: 6px !important; background: rgba(255,255,255,0.1) !important; border-radius: 10px !important; margin-top: 15px !important; overflow: hidden !important; }
+        #quotaFill { width: 0%; height: 100% !important; background: #00ff88 !important; transition: width 0.5s ease !important; }
+
+        .sangrok-control-panel { display: flex !important; flex-direction: column !important; gap: 15px !important; }
+        .sangrok-btn { width: 100% !important; padding: 20px !important; border-radius: 20px !important; font-weight: 800 !important; text-align: center !important; text-decoration: none !important; color: #fff !important; font-size: 15px !important; border: none !important; cursor: pointer !important; }
+        .btn-full { background: rgba(255,255,255,0.08) !important; border: 1px solid rgba(255,255,255,0.1) !important; }
+        .btn-stop { background: linear-gradient(135deg, #ff3333, #b30000) !important; box-shadow: 0 10px 20px rgba(255,51,51,0.2) !important; }
+
+        @media (max-width: 1100px) {
+            #sangrok-root { padding: 15px !important; }
+            .main-container { flex-direction: column !important; gap: 15px !important; }
+            .sangrok-side-panel { max-width: 100% !important; flex-direction: row !important; flex-wrap: wrap !important; gap: 12px !important; }
+            
+            .sangrok-glass-card { display: none !important; } 
+            .card-split { 
+                display: flex !important; width: calc(50% - 6px) !important; 
+                background: rgba(255, 255, 255, 0.05) !important; backdrop-filter: blur(25px) !important; 
+                border-radius: 20px !important; padding: 20px !important;
+                border-top: 1px solid rgba(255, 255, 255, 0.1) !important;
+                justify-content: space-between !important; align-items: stretch !important;
+            }
+            .card-item { 
+                flex: 1 !important; 
+                display: flex !important; 
+                flex-direction: column !important; 
+                justify-content: flex-start !important; 
+            }
+            .card-divider { width: 1px !important; height: 35px !important; background: rgba(255,255,255,0.1) !important; margin: 0 15px !important; align-self: center !important; }
+
+            .sangrok-value { font-size: 42px !important; letter-spacing: -2px !important; display: block !important; margin-top: 4px !important; }
+            .status-small-value { font-size: 28px !important; display: block !important; margin-top: 4px !important; }
+            .sangrok-label { margin-bottom: 4px !important; white-space: nowrap !important; }
+
+            #videoTitle { font-size: 22px !important; }
+            .info-under-video { padding: 20px !important; }
+            
+            .sangrok-control-panel { width: 100% !important; flex-direction: row !important; gap: 10px !important; }
+            .sangrok-btn { padding: 15px !important; font-size: 14px !important; }
+        }
+    </style>
+</head>
+<body>
+
+<div id="sangrok-isolation-wrapper">
+    <div id="sangrok-root">
+        <div id="system-status-bar">
+            <div id="status-msg">● 시스템 초기화 중...</div>
+            <div id="last-check">
+                <span id="update-time">연결 확인 중...</span>
+                <span style="opacity: 0.5;">|</span>
+                <span>SANGROK MONITOR v7.0.0 (LP)</span>
+            </div>
+        </div>
+
+        <div class="main-container">
+            <div class="sangrok-video-section">
+                <div class="sangrok-video-glass">
+                    <div id="offline-overlay">
+                        <img id="offline-logo" src="https://cdn.imweb.me/upload/S20221222d3f155c224be8/ff5490ccf9c8d.png" alt="상록교회 로고">
+                        <p id="offline-msg">SANGROK LIVE MONITORING</p>
+                    </div>
+                    <iframe id="livePlayer" src="" allow="autoplay; fullscreen" allowfullscreen style="display:none;"></iframe>
+                </div>
+                
+                <div class="info-under-video">
+                    <div id="audioCheck" class="audio-check-wrapper">
+                        <div class="audio-bars">
+                            <div class="audio-bar"></div><div class="audio-bar"></div><div class="audio-bar"></div><div class="audio-bar"></div><div class="audio-bar"></div>
+                        </div>
+                        <span id="audioStatusText" style="color:rgba(255,255,255,0.2) !important; font-size:12px !important; font-weight:900 !important; letter-spacing:1px !important;">방송 신호 대기 중</span>
+                    </div>
+                    <div id="videoTitle">방송 신호 확인 중...</div>
+                    <div id="status-badge" style="display:none;">신호 확인 중</div>
+                </div>
+            </div>
+
+            <div class="sangrok-side-panel">
+                <div class="sangrok-glass-card">
+                    <span class="sangrok-label">실시간 시청자</span>
+                    <div style="display:flex !important; align-items: baseline !important;">
+                        <span id="viewers" class="sangrok-value">0</span>
+                        <span id="viewer-trend"></span>
+                    </div>
+                </div>
+                <div class="sangrok-glass-card"><span class="sangrok-label">송출 해상도</span><span id="resolutionStatus" class="status-small-value">--</span></div>
+                <div class="sangrok-glass-card" id="apiCard">
+                    <span class="sangrok-label">API 상태</span><span id="apiStatusLabel" class="status-small-value" style="color:#00ff88 !important;">정상</span>
+                    <div class="quota-bar-wrapper"><div id="quotaFill"></div></div>
+                    <p id="apiDetail" style="color:rgba(255,255,255,0.2); margin-top:10px; font-size:11px; font-weight:700;">연결 시도 중...</p>
+                </div>
+                <div class="sangrok-glass-card" id="netCard">
+                    <span class="sangrok-label">네트워크 지연시간 (Ping)</span>
+                    <span id="netStatus" class="status-small-value">Checking...</span>
+                    <p id="ping-msg" style="color:rgba(255,255,255,0.2); margin-top:10px; font-size:11px; font-weight:700;">실시간 응답 속도 측정 중</p>
+                </div>
+
+                <div class="card-split">
+                    <div class="card-item">
+                        <span class="sangrok-label">시청자</span>
+                        <div style="display:flex !important; align-items: baseline !important;"><span id="viewers_m" class="sangrok-value">0</span></div>
+                    </div>
+                    <div class="card-divider"></div>
+                    <div class="card-item">
+                        <span class="sangrok-label">해상도</span>
+                        <span id="resolutionStatus_m" class="status-small-value">--</span>
+                    </div>
+                </div>
+                <div class="card-split">
+                    <div class="card-item">
+                        <span class="sangrok-label">API 상태</span>
+                        <span id="apiStatusLabel_m" class="status-small-value" style="color:#00ff88 !important;">정상</span>
+                    </div>
+                    <div class="card-divider"></div>
+                    <div class="card-item">
+                        <span class="sangrok-label">네트워크</span>
+                        <span id="netStatus_m" class="status-small-value">--</span>
+                    </div>
+                </div>
+
+                <div class="sangrok-control-panel">
+                    <button onclick="toggleFullScreen()" id="fsBtn" class="sangrok-btn btn-full">🖥️ 전체화면</button>
+                    <a href="https://studio.youtube.com/channel/UCWaQ1l4rgsn5gmmYjIsRu6g/livestreaming" target="_blank" class="sangrok-btn btn-stop">🛑 스트리밍 관리</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    /* [LOGIC SECTION] - PlaylistItems 최적화 로직 (할당량 1점 버전) */
+    const API_KEYS = ['AIzaSyAoeyiomqmiP2EjDe2hfka-zIGUhuTHwW4', 'AIzaSyB97We2VbOZGvzGy_MJgKB1IQ6yrG47IOw', 'AIzaSyDOO35FmahxTaBOjkZO_vXcRQiBzjda_kY'];    
+    // 채널 ID의 두 번째 글자 C를 U로 바꿔 업로드 목록 ID 생성
+    const UPLOAD_PLAYLIST_ID = 'UUWaQ1l4rgsn5gmmYjIsRu6g'; 
+    const MAX_CALLS = 5000; // PlaylistItems 사용 시 일일 한도 대폭 상승
+    let currentKeyIndex = 0;
+    let keyUsage = new Array(API_KEYS.length).fill(0); 
+    let isChecking = false;
+    let mainTimer = null;
+
+    function getActiveKey() { return API_KEYS[currentKeyIndex]; }
+
+    function syncValue(id, value, color) {
+        const el = document.getElementById(id);
+        const elM = document.getElementById(id + '_m');
+        if(el) el.innerText = value;
+        if(elM) elM.innerText = value;
+        if(color) {
+            if(el) el.style.color = color;
+            if(elM) elM.style.color = color;
+        }
+    }
+
+    function getErrorReason(data) {
+        return data?.error?.errors?.[0]?.reason || data?.error?.reason || '';
+    }
+
+    function setApiState(label, color, detail) {
+        syncValue('apiStatusLabel', label, color);
+        if (detail) document.getElementById('apiDetail').innerText = detail;
+    }
+
+    function setIdleState() {
+        document.getElementById('videoTitle').innerText = "현재 진행 중인 방송 없음";
+        document.getElementById('status-msg').innerText = "● 시스템 대기 중 (정상)";
+        document.getElementById('status-msg').style.color = "#00ff88";
+        document.getElementById('status-badge').style.display = "none";
+        if (mainTimer) clearInterval(mainTimer); mainTimer = null;
+        updateAudioVisual('off');
+        updatePlayer(null);
+        syncValue('viewers', '0');
+        syncValue('resolutionStatus', '--');
+    }
+
+    function updatePlayer(videoId) {
+        const player = document.getElementById('livePlayer');
+        const overlay = document.getElementById('offline-overlay');
+        if (videoId) {
+            const currentSrc = player.getAttribute('src');
+            const targetSrc = `https://www.youtube.com/embed/${videoId}?autoplay=1&mute=1&rel=0`;
+            if (currentSrc !== targetSrc) player.setAttribute('src', targetSrc);
+            player.style.display = "block"; overlay.style.display = "none";
+        } else {
+            player.setAttribute('src', "");
+            player.style.display = "none"; overlay.style.display = "flex";
+        }
+    }
+
+    function toggleFullScreen() {
+        const btn = document.getElementById('fsBtn');
+        if (!document.fullscreenElement) { 
+            document.documentElement.requestFullscreen();
+            btn.innerText = "📂 종료";
+        } else { 
+            document.exitFullscreen();
+            btn.innerText = "🖥️ 전체화면";
+        }
+    }
+
+    async function checkPing() {
+        const start = Date.now();
+        try {
+            await fetch('https://www.google.com/favicon.ico', { mode: 'no-cors', cache: 'no-cache' });
+            const latency = Date.now() - start;
+            let color = "#00ff88";
+            if (latency >= 100) color = "#FFC107";
+            if (latency >= 250) color = "#ff3333";
+            syncValue('netStatus', latency + "ms", color);
+            document.getElementById('ping-msg').innerText = `실시간 응답 속도: ${latency}ms`;
+        } catch (e) {
+            syncValue('netStatus', "Error", "#ff3333");
+            document.getElementById('ping-msg').innerText = '네트워크 상태를 확인하세요';
+        }
+    }
+    setInterval(checkPing, 5000);
+
+    function updateAudioVisual(state) {
+        const bars = document.querySelectorAll('.audio-bar');
+        const text = document.getElementById('audioStatusText');
+        bars.forEach(bar => {
+            bar.classList.remove('anim-live', 'anim-wait');
+            if (state === 'live') {
+                bar.style.background = "#00ff88"; bar.classList.add('anim-live');
+                text.innerText = "오디오 신호 정상 송출 중"; text.style.color = "#00ff88";
+            } else if (state === 'upcoming') {
+                bar.style.background = "#FFC107"; bar.classList.add('anim-wait');
+                text.innerText = "방송 예약: 오디오 대기 중"; text.style.color = "#FFC107";
+            } else {
+                bar.style.background = "#444"; text.innerText = "오디오 신호 없음"; text.style.color = "rgba(255,255,255,0.2)";
+            }
+        });
+    }
+
+    function startTimer(targetTime, type) {
+        if (mainTimer) clearInterval(mainTimer);
+        const badge = document.getElementById('status-badge');
+        badge.style.display = "block";
+        badge.className = (type === 'live') ? 'badge-live' : 'badge-upcoming';
+        function update() {
+            const now = new Date();
+            const target = new Date(targetTime);
+            let diff = (type === 'live') ? (now - target) : (target - now);
+            if (diff <= 0 && type === 'upcoming') { badge.innerText = "⚠️ 곧 방송을 시작합니다"; return; }
+            const h = Math.floor(diff / 3600000).toString().padStart(2, '0');
+            const m = Math.floor((diff % 3600000) / 60000).toString().padStart(2, '0');
+            const s = Math.floor((diff % 60000) / 1000).toString().padStart(2, '0');
+            badge.innerText = (type === 'live' ? '방송 중 ' : '시작까지 ') + `${h}:${m}:${s}`;
+        }
+        update(); mainTimer = setInterval(update, 1000);
+    }
+
+    async function monitor() {
+        if (isChecking) return;
+        isChecking = true;
+        try {
+            let detailData = null;
+
+            for (let attempt = 0; attempt < API_KEYS.length; attempt++) {
+                const activeKey = getActiveKey();
+                keyUsage[currentKeyIndex]++;
+                const percent = Math.min(Math.round((keyUsage[currentKeyIndex] / MAX_CALLS) * 100), 100);
+                document.getElementById('quotaFill').style.width = percent + "%";
+                setApiState('정상', '#00ff88', `API 키 #${currentKeyIndex + 1} (${percent}%)`);
+
+                // 1. 업로드된 영상 목록 상위 5개를 가져옴 (playlistItems - 1점)
+                const listRes = await fetch(`https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&playlistId=${UPLOAD_PLAYLIST_ID}&maxResults=5&key=${activeKey}`);
+                const listData = await listRes.json();
+                const listReason = getErrorReason(listData);
+
+                if (listReason === 'quotaExceeded' || listReason === 'dailyLimitExceeded') {
+                    currentKeyIndex = (currentKeyIndex + 1) % API_KEYS.length;
+                    continue;
+                }
+
+                if (!listData.items?.length) {
+                    setIdleState();
+                    detailData = { items: [] };
+                    break;
+                }
+
+                const videoIds = listData.items.map(item => item.snippet.resourceId.videoId).join(',');
+
+                // 2. 해당 영상들의 실제 상태(live, upcoming 여부)를 조회 (videos - 1점)
+                const detailRes = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=snippet,liveStreamingDetails,contentDetails&id=${videoIds}&key=${activeKey}`);
+                detailData = await detailRes.json();
+                const detailReason = getErrorReason(detailData);
+
+                if (detailReason === 'quotaExceeded' || detailReason === 'dailyLimitExceeded') {
+                    currentKeyIndex = (currentKeyIndex + 1) % API_KEYS.length;
+                    detailData = null;
+                    continue;
+                }
+
+                break;
+            }
+
+            if (!detailData) {
+                setApiState('한도초과', '#ff3333', '모든 API 키의 할당량이 소진되었습니다');
+                return;
+            }
+
+            if (!Array.isArray(detailData.items)) {
+                setApiState('오류', '#ff3333', 'YouTube API 응답 형식을 확인하세요');
+                return;
+            }
+
+            let targetVideo = null;
+            const liveVideo = detailData.items.find(v => v.snippet.liveBroadcastContent === 'live');
+            const upcomingVideos = detailData.items.filter(v => v.snippet.liveBroadcastContent === 'upcoming');
+
+            if (liveVideo) {
+                // 현재 방송 중인 영상이 있으면 최우선 순위
+                targetVideo = liveVideo;
+                document.getElementById('videoTitle').innerText = targetVideo.snippet.title;
+                document.getElementById('status-msg').innerText = "● 실시간 송출 모니터링 중";
+                document.getElementById('status-msg').style.color = "#ff3333";
+                updateAudioVisual('live');
+                updatePlayer(targetVideo.id);
+
+                const currentViewers = parseInt(targetVideo.liveStreamingDetails?.concurrentViewers || 0, 10);
+                syncValue('viewers', currentViewers.toLocaleString());
+                syncValue('resolutionStatus', targetVideo.contentDetails?.definition?.toUpperCase() || "--");
+                if (targetVideo.liveStreamingDetails?.actualStartTime) startTimer(targetVideo.liveStreamingDetails.actualStartTime, 'live');
+
+            } else if (upcomingVideos.length > 0) {
+                // 예약 방송 중 시간이 가장 임박한 것(ScheduledStartTime이 가장 빠른 것)을 선택
+                upcomingVideos.sort((a, b) => 
+                    new Date(a.liveStreamingDetails?.scheduledStartTime || Number.MAX_SAFE_INTEGER) - new Date(b.liveStreamingDetails?.scheduledStartTime || Number.MAX_SAFE_INTEGER)
+                );
+                
+                targetVideo = upcomingVideos[0];
+                document.getElementById('videoTitle').innerText = "[예약] " + targetVideo.snippet.title;
+                document.getElementById('status-msg').innerText = "● 방송 예약 대기 중";
+                document.getElementById('status-msg').style.color = "#FFC107";
+                updateAudioVisual('upcoming');
+                updatePlayer(targetVideo.id);
+                
+                syncValue('viewers', '0');
+                syncValue('resolutionStatus', '--');
+                if (targetVideo.liveStreamingDetails?.scheduledStartTime) startTimer(targetVideo.liveStreamingDetails.scheduledStartTime, 'upcoming');
+
+            } else {
+                setIdleState();
+            }
+        } catch (e) {
+            console.error("Monitoring Error:", e);
+            setApiState('오류', '#ff3333', '모니터링 중 오류가 발생했습니다');
+        } finally {
+            isChecking = false;
+            document.getElementById('update-time').innerText = `최근 업데이트: ${new Date().toLocaleTimeString()}`;
+            // 1분 간격으로 업데이트 (60000ms)
+            setTimeout(monitor, 60000);
+        }
+    }
+
+    window.onload = () => { monitor(); checkPing(); };
+</script>
+</body>
+</html>
